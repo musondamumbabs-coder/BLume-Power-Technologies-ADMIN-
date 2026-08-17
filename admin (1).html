@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — BLume Power Technologies</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #2E8B57; --green-light: #A8D5B5;
+    --forest: #0D1F17; --gold: #FFD166;
+    --mist: #F5F9F6; --charcoal: #2C2C2C;
+    --panel: #12261C; --border: rgba(168,213,181,0.15);
+    --danger: #E85D5D;
+    --nav-height: 64px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif; background: var(--forest); color: #fff;
+    min-height: 100vh;
+  }
+  code, .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ===== LOGIN ===== */
+  #loginScreen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 1.5rem; padding: 2rem;
+  }
+  .login-card {
+    background: var(--panel); border: 0.5px solid var(--border); border-radius: 14px;
+    padding: 2.5rem 2rem; width: 100%; max-width: 360px;
+  }
+  .login-logo { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 1.75rem; }
+  .login-logo-icon { width: 40px; height: 40px; border-radius: 9px; overflow: hidden; }
+  .login-logo-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .login-logo-text { font-family: 'Playfair Display', serif; font-size: 17px; }
+  .login-logo-text span { color: var(--green-light); }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(255,255,255,0.55); margin-bottom: 0.4rem; }
+  .field input {
+    width: 100%; background: rgba(255,255,255,0.04); border: 0.5px solid var(--border);
+    border-radius: 8px; padding: 0.7rem 0.85rem; color: #fff; font-size: 14px; font-family: inherit;
+  }
+  .field input:focus { outline: none; border-color: var(--green-light); }
+  .btn { background: var(--green); color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 8px;
+    font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+  .btn:hover { background: #266f47; }
+  .btn-block { width: 100%; }
+  .btn-outline { background: transparent; border: 0.5px solid var(--border); color: rgba(255,255,255,0.75); }
+  .btn-outline:hover { border-color: var(--green-light); color: var(--green-light); background: transparent; }
+  .btn-danger { background: transparent; border: 0.5px solid rgba(232,93,93,0.4); color: var(--danger); }
+  .btn-danger:hover { background: rgba(232,93,93,0.1); }
+  .login-error { color: var(--danger); font-size: 13px; text-align: center; min-height: 18px; }
+  .login-hint { font-size: 12px; color: rgba(255,255,255,0.4); text-align: center; max-width: 320px; line-height: 1.5; }
+
+  /* ===== SHELL ===== */
+  #appShell { display: none; min-height: 100vh; }
+  nav.topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-height); z-index: 100;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem;
+    background: rgba(13,31,23,0.95); backdrop-filter: blur(12px); border-bottom: 0.5px solid var(--border);
+  }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; }
+  .topbar-logo-icon { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; }
+  .topbar-logo-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .topbar-logo-text { font-family: 'Playfair Display', serif; font-size: 15px; }
+  .topbar-logo-text span { color: var(--green-light); }
+  .topbar-user { font-size: 13px; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 1rem; }
+
+  .layout { display: flex; padding-top: var(--nav-height); min-height: 100vh; }
+  aside.sidebar {
+    width: 210px; flex-shrink: 0; border-right: 0.5px solid var(--border);
+    padding: 1.5rem 0.75rem; position: fixed; top: var(--nav-height); bottom: 0; left: 0; overflow-y: auto;
+  }
+  .sidebar button {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    background: none; border: none; color: rgba(255,255,255,0.65); font-family: inherit;
+    font-size: 13.5px; padding: 0.65rem 0.85rem; border-radius: 8px; cursor: pointer; margin-bottom: 2px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .sidebar button:hover { background: rgba(255,255,255,0.04); color: #fff; }
+  .sidebar button.active { background: rgba(46,139,87,0.18); color: var(--green-light); }
+  .sidebar-icon { width: 16px; text-align: center; }
+
+  main.content { flex: 1; margin-left: 210px; padding: 2rem 2.5rem 4rem; max-width: 1100px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 0.75rem; }
+  .view-header h1 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 400; }
+  .view-header p { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 0.25rem; }
+
+  /* ===== CARDS / TABLE ===== */
+  .card { background: var(--panel); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+  .stat { background: var(--panel); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; }
+  .stat .num { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--green-light); }
+  .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.45); margin-top: 0.3rem; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: rgba(255,255,255,0.4); padding: 0.6rem 0.75rem; border-bottom: 0.5px solid var(--border); }
+  td { padding: 0.75rem; border-bottom: 0.5px solid rgba(255,255,255,0.05); font-size: 13.5px; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; font-size: 11px; padding: 0.25rem 0.65rem; border-radius: 20px; font-weight: 500; }
+  .pill-new { background: rgba(255,209,102,0.15); color: var(--gold); }
+  .pill-quoted { background: rgba(46,139,87,0.18); color: var(--green-light); }
+  .pill-progress { background: rgba(94,157,255,0.15); color: #8ab6ff; }
+  .pill-complete { background: rgba(168,213,181,0.15); color: var(--green-light); }
+  select.pill-select {
+    background: rgba(255,255,255,0.04); border: 0.5px solid var(--border); color: #fff;
+    font-size: 12px; padding: 0.3rem 0.5rem; border-radius: 6px; font-family: inherit;
+  }
+  .empty-state { text-align: center; padding: 3rem 1rem; color: rgba(255,255,255,0.4); font-size: 13.5px; }
+  .row-actions button { background: none; border: none; color: var(--green-light); cursor: pointer; font-size: 12px; font-family: inherit; margin-right: 0.75rem; }
+  .row-actions button.del { color: var(--danger); }
+
+  /* ===== FORMS ===== */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  textarea { resize: vertical; min-height: 90px; }
+  .field select { width: 100%; background: rgba(255,255,255,0.04); border: 0.5px solid var(--border);
+    border-radius: 8px; padding: 0.7rem 0.85rem; color: #fff; font-size: 14px; font-family: inherit; }
+
+  /* Portfolio grid */
+  .portfolio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 1.1rem; margin-top: 1.25rem; }
+  .p-card { background: var(--panel); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .p-card img { width: 100%; height: 130px; object-fit: cover; display: block; background: rgba(255,255,255,0.05); }
+  .p-card-body { padding: 0.9rem 1rem; }
+  .p-card-body h4 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: 15px; margin-bottom: 0.25rem; }
+  .p-card-body p { font-size: 12.5px; color: rgba(255,255,255,0.5); }
+
+  /* Pipeline board */
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem; }
+  .board-col { background: var(--panel); border: 0.5px solid var(--border); border-radius: 12px; padding: 0.9rem; min-height: 200px; }
+  .board-col h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.5); margin-bottom: 0.75rem; }
+  .board-card { background: rgba(255,255,255,0.03); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.65rem 0.75rem; margin-bottom: 0.6rem; font-size: 12.5px; }
+  .board-card .cname { font-weight: 500; margin-bottom: 0.2rem; }
+  .board-card select { width: 100%; margin-top: 0.5rem; font-size: 11px; }
+
+  /* Quote builder */
+  .svc-row { display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .svc-row .field { margin-bottom: 0; flex: 1; min-width: 110px; }
+  .room-list { margin-top: 0.75rem; }
+  .room-item { display: grid; grid-template-columns: 1.4fr 0.7fr 0.7fr 0.7fr auto; gap: 0.6rem; align-items: end; margin-bottom: 0.6rem; }
+  .room-item .field { margin-bottom: 0; }
+  .boq-output { margin-top: 1.5rem; }
+  .boq-output table td, .boq-output table th { font-size: 12.5px; }
+  .total-line { display: flex; justify-content: space-between; padding: 0.6rem 0.75rem; font-size: 14px; font-weight: 500; border-top: 0.5px solid var(--border); margin-top: 0.5rem; }
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--green); color: #fff;
+    padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    display: none; z-index: 200;
+  }
+  .setup-note {
+    background: rgba(255,209,102,0.08); border: 0.5px solid rgba(255,209,102,0.25); border-radius: 10px;
+    padding: 0.9rem 1.1rem; font-size: 12.5px; color: rgba(255,255,255,0.7); margin-bottom: 1.5rem; line-height: 1.6;
+  }
+  .setup-note code { color: var(--gold); }
+
+  @media (max-width: 860px) {
+    aside.sidebar { display: none; }
+    main.content { margin-left: 0; padding: 1.5rem; }
+    .board { grid-template-columns: 1fr 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon"><img src="logo.png" alt="BLume" onerror="this.style.display='none'"></div>
+      <div class="login-logo-text"><span>BL</span>ume Admin</div>
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@blumepowertech.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-block" onclick="doLogin()">Sign in</button>
+    <p class="login-error" id="loginError"></p>
+  </div>
+  <p class="login-hint">This panel manages leads, portfolio, project pipeline, and quote generation for BLume Power Technologies. Access is restricted to authorized staff.</p>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="appShell">
+  <nav class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon"><img src="logo.png" alt="BLume" onerror="this.style.display='none'"></div>
+      <div class="topbar-logo-text"><span>BL</span>ume Admin</div>
+    </div>
+    <div class="topbar-user">
+      <span id="userEmailLabel"></span>
+      <button class="btn btn-outline" style="padding:0.4rem 0.9rem;font-size:12px;" onclick="doLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <button data-view="dashboard" class="active" onclick="showView('dashboard')"><span class="sidebar-icon">◆</span> Dashboard</button>
+      <button data-view="leads" onclick="showView('leads')"><span class="sidebar-icon">✉</span> Leads</button>
+      <button data-view="pipeline" onclick="showView('pipeline')"><span class="sidebar-icon">▤</span> Pipeline</button>
+      <button data-view="portfolio" onclick="showView('portfolio')"><span class="sidebar-icon">▣</span> Portfolio</button>
+      <button data-view="quote" onclick="showView('quote')"><span class="sidebar-icon">✎</span> Quote Generator</button>
+    </aside>
+
+    <main class="content">
+
+      <!-- DASHBOARD -->
+      <section class="view active" id="view-dashboard">
+        <div class="view-header">
+          <div><h1>Dashboard</h1><p>Overview of leads, pipeline, and recent activity.</p></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="num" id="statLeads">0</div><div class="label">New Leads</div></div>
+          <div class="stat"><div class="num" id="statActive">0</div><div class="label">Active Projects</div></div>
+          <div class="stat"><div class="num" id="statComplete">0</div><div class="label">Completed</div></div>
+          <div class="stat"><div class="num" id="statPortfolio">0</div><div class="label">Portfolio Items</div></div>
+        </div>
+        <div class="card">
+          <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:16px;margin-bottom:1rem;">Recent Leads</h3>
+          <table>
+            <thead><tr><th>Name</th><th>Service</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody id="dashRecentLeads"><tr><td colspan="4" class="empty-state">No leads yet</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- LEADS -->
+      <section class="view" id="view-leads">
+        <div class="view-header">
+          <div><h1>Leads</h1><p>Quote requests captured from the customer site.</p></div>
+        </div>
+        <div class="setup-note">
+          Currently the customer site sends quote requests straight to WhatsApp. Once Firebase is connected (see setup note in the script), submissions will also save here automatically and trigger an EmailJS notification — nothing gets lost if a WhatsApp message goes unanswered.
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Name</th><th>Contact</th><th>Service</th><th>Property</th><th>Details</th><th>Status</th><th></th></tr></thead>
+            <tbody id="leadsTable"><tr><td colspan="7" class="empty-state">No leads yet — connect Firebase to start receiving them here.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PIPELINE -->
+      <section class="view" id="view-pipeline">
+        <div class="view-header">
+          <div><h1>Project Pipeline</h1><p>Track jobs from quoted through completion.</p></div>
+        </div>
+        <div class="board" id="pipelineBoard">
+          <div class="board-col" data-stage="new"><h3>New</h3><div class="board-cards"></div></div>
+          <div class="board-col" data-stage="quoted"><h3>Quoted</h3><div class="board-cards"></div></div>
+          <div class="board-col" data-stage="progress"><h3>In Progress</h3><div class="board-cards"></div></div>
+          <div class="board-col" data-stage="complete"><h3>Complete</h3><div class="board-cards"></div></div>
+        </div>
+      </section>
+
+      <!-- PORTFOLIO -->
+      <section class="view" id="view-portfolio">
+        <div class="view-header">
+          <div><h1>Portfolio</h1><p>Completed jobs shown on the public site.</p></div>
+          <button class="btn" onclick="openPortfolioForm()">+ Add Item</button>
+        </div>
+        <div id="portfolioFormWrap" style="display:none;" class="card">
+          <div class="grid2">
+            <div class="field"><label>Title</label><input id="pfTitle" placeholder="e.g. Z-Alert install — Kabulonga residence"></div>
+            <div class="field"><label>Category</label>
+              <select id="pfCategory"><option>Z-Alert Install</option><option>House Wiring</option><option>Other</option></select>
+            </div>
+          </div>
+          <div class="field"><label>Description</label><textarea id="pfDesc" placeholder="Short description shown under the image"></textarea></div>
+          <div class="field"><label>Image URL</label><input id="pfImage" placeholder="https://..."></div>
+          <button class="btn" onclick="savePortfolioItem()">Save</button>
+          <button class="btn btn-outline" onclick="closePortfolioForm()">Cancel</button>
+        </div>
+        <div class="portfolio-grid" id="portfolioGrid">
+          <div class="empty-state" style="grid-column:1/-1;">No portfolio items yet.</div>
+        </div>
+      </section>
+
+      <!-- QUOTE GENERATOR -->
+      <section class="view" id="view-quote">
+        <div class="view-header">
+          <div><h1>Quote Generator</h1><p>House wiring BOQ calculator — enter rooms, get materials and a branded quote.</p></div>
+        </div>
+
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="grid2">
+            <div class="field"><label>Customer Name</label><input id="qCustName"></div>
+            <div class="field"><label>Phone</label><input id="qCustPhone"></div>
+          </div>
+          <div class="field"><label>Property Type</label>
+            <select id="qPropType"><option>House</option><option>Flat / Apartment</option><option>Commercial</option></select>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1.5rem;">
+          <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:16px;margin-bottom:1rem;">Rooms</h3>
+          <div class="room-list" id="roomList"></div>
+          <button class="btn btn-outline" onclick="addRoom()">+ Add Room</button>
+        </div>
+
+        <button class="btn" onclick="calculateBOQ()">Calculate BOQ</button>
+
+        <div class="boq-output card" id="boqOutput" style="display:none;">
+          <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:16px;margin-bottom:1rem;">Bill of Quantities</h3>
+          <table>
+            <thead><tr><th>Item</th><th>Qty</th><th>Unit</th></tr></thead>
+            <tbody id="boqTable"></tbody>
+          </table>
+          <div class="total-line"><span>Circuits (lighting / socket)</span><span id="boqCircuits"></span></div>
+          <button class="btn" style="margin-top:1.25rem;" onclick="downloadQuote()">Download Branded Quote (.doc)</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   FIREBASE SETUP — REQUIRED BEFORE THIS PANEL IS LIVE
+   1. Create a Firebase project at console.firebase.google.com
+   2. Enable Authentication → Email/Password, and create your admin user(s)
+   3. Enable Firestore Database (start in production mode)
+   4. Copy your config below (Project settings → General → Your apps → Web app)
+   5. Firestore collections used: "leads", "portfolio", "pipeline"
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+/* =========================================================================
+   EMAILJS SETUP — for lead notifications (mirrors the SmartLab pattern)
+   1. Create account at emailjs.com, add an email service
+   2. Create a template with vars: {{name}}, {{phone}}, {{service}}, {{details}}
+   3. Fill in the three values below
+   ========================================================================= */
+const EMAILJS_PUBLIC_KEY = "YOUR_PUBLIC_KEY";
+const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
+const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
+
+let fbReady = false;
+let db, auth;
+try {
+  if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    fbReady = true;
+  }
+  if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY" && window.emailjs) {
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+  }
+} catch(e) { console.warn("Firebase/EmailJS not configured yet:", e); }
+
+/* ---------------- AUTH ---------------- */
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = "";
+  if (!fbReady) { errEl.textContent = "Firebase isn't connected yet — add your config in the script."; return; }
+  if (!email || !pass) { errEl.textContent = "Enter email and password."; return; }
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(() => enterApp(email))
+    .catch(err => { errEl.textContent = err.message; });
+}
+function doLogout() {
+  if (fbReady) auth.signOut();
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+function enterApp(email) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  document.getElementById('userEmailLabel').textContent = email || '';
+  if (fbReady) { loadLeads(); loadPortfolio(); loadPipeline(); }
+}
+if (fbReady) {
+  auth.onAuthStateChanged(user => { if (user) enterApp(user.email); });
+}
+
+/* ---------------- NAV ---------------- */
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.sidebar button[data-view="${name}"]`).classList.add('active');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2600);
+}
+
+/* ---------------- LEADS ---------------- */
+function loadLeads() {
+  db.collection('leads').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const rows = [];
+    const recentRows = [];
+    let newCount = 0;
+    snap.forEach(doc => {
+      const d = doc.data();
+      if ((d.status || 'new') === 'new') newCount++;
+      rows.push(`<tr>
+        <td>${escapeHtml(d.name||'')}</td>
+        <td>${escapeHtml(d.phone||'')}</td>
+        <td>${escapeHtml(d.service||'')}</td>
+        <td>${escapeHtml(d.property||'')}</td>
+        <td>${escapeHtml(d.details||'')}</td>
+        <td>${statusPill(d.status||'new')}</td>
+        <td class="row-actions">
+          <button onclick="promoteLead('${doc.id}')">Move to pipeline</button>
+          <button class="del" onclick="deleteDoc('leads','${doc.id}')">Delete</button>
+        </td>
+      </tr>`);
+      if (recentRows.length < 5) {
+        recentRows.push(`<tr><td>${escapeHtml(d.name||'')}</td><td>${escapeHtml(d.service||'')}</td><td>${fmtDate(d.createdAt)}</td><td>${statusPill(d.status||'new')}</td></tr>`);
+      }
+    });
+    document.getElementById('leadsTable').innerHTML = rows.length ? rows.join('') : `<tr><td colspan="7" class="empty-state">No leads yet.</td></tr>`;
+    document.getElementById('dashRecentLeads').innerHTML = recentRows.length ? recentRows.join('') : `<tr><td colspan="4" class="empty-state">No leads yet</td></tr>`;
+    document.getElementById('statLeads').textContent = newCount;
+  });
+}
+function statusPill(s) {
+  const map = { new: ['New','pill-new'], quoted: ['Quoted','pill-quoted'], progress: ['In Progress','pill-progress'], complete: ['Complete','pill-complete'] };
+  const [label, cls] = map[s] || map.new;
+  return `<span class="pill ${cls}">${label}</span>`;
+}
+function fmtDate(ts) {
+  if (!ts || !ts.toDate) return '—';
+  return ts.toDate().toLocaleDateString();
+}
+function promoteLead(id) {
+  db.collection('leads').doc(id).get().then(doc => {
+    const d = doc.data();
+    db.collection('pipeline').add({
+      name: d.name, service: d.service, phone: d.phone, stage: 'quoted', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    db.collection('leads').doc(id).update({ status: 'quoted' });
+    showToast('Moved to pipeline');
+  });
+}
+function deleteDoc(col, id) {
+  db.collection(col).doc(id).delete().then(() => showToast('Deleted'));
+}
+
+/* ---------------- PIPELINE ---------------- */
+function loadPipeline() {
+  db.collection('pipeline').onSnapshot(snap => {
+    const stages = { new: [], quoted: [], progress: [], complete: [] };
+    let activeCount = 0, completeCount = 0;
+    snap.forEach(doc => {
+      const d = doc.data();
+      const stage = stages[d.stage] ? d.stage : 'new';
+      stages[stage].push({ id: doc.id, ...d });
+      if (stage === 'progress' || stage === 'quoted') activeCount++;
+      if (stage === 'complete') completeCount++;
+    });
+    Object.keys(stages).forEach(stage => {
+      const col = document.querySelector(`.board-col[data-stage="${stage}"] .board-cards`);
+      col.innerHTML = stages[stage].length ? stages[stage].map(cardHtml).join('') :
+        `<div style="font-size:12px;color:rgba(255,255,255,0.3);">Empty</div>`;
+    });
+    document.getElementById('statActive').textContent = activeCount;
+    document.getElementById('statComplete').textContent = completeCount;
+  });
+}
+function cardHtml(item) {
+  return `<div class="board-card">
+    <div class="cname">${escapeHtml(item.name||'Untitled')}</div>
+    <div style="color:rgba(255,255,255,0.5);">${escapeHtml(item.service||'')}</div>
+    <select onchange="moveStage('${item.id}', this.value)">
+      <option value="new" ${item.stage==='new'?'selected':''}>New</option>
+      <option value="quoted" ${item.stage==='quoted'?'selected':''}>Quoted</option>
+      <option value="progress" ${item.stage==='progress'?'selected':''}>In Progress</option>
+      <option value="complete" ${item.stage==='complete'?'selected':''}>Complete</option>
+    </select>
+  </div>`;
+}
+function moveStage(id, stage) {
+  db.collection('pipeline').doc(id).update({ stage });
+}
+
+/* ---------------- PORTFOLIO ---------------- */
+function openPortfolioForm() { document.getElementById('portfolioFormWrap').style.display = 'block'; }
+function closePortfolioForm() { document.getElementById('portfolioFormWrap').style.display = 'none'; }
+function savePortfolioItem() {
+  const title = document.getElementById('pfTitle').value.trim();
+  if (!title) { showToast('Title required'); return; }
+  db.collection('portfolio').add({
+    title, category: document.getElementById('pfCategory').value,
+    desc: document.getElementById('pfDesc').value.trim(),
+    image: document.getElementById('pfImage').value.trim(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => { closePortfolioForm(); showToast('Portfolio item added'); });
+}
+function loadPortfolio() {
+  db.collection('portfolio').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const cards = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      cards.push(`<div class="p-card">
+        <img src="${escapeHtml(d.image||'')}" onerror="this.style.display='none'">
+        <div class="p-card-body">
+          <h4>${escapeHtml(d.title||'')}</h4>
+          <p>${escapeHtml(d.desc||'')}</p>
+        </div>
+      </div>`);
+    });
+    document.getElementById('portfolioGrid').innerHTML = cards.length ? cards.join('') : `<div class="empty-state" style="grid-column:1/-1;">No portfolio items yet.</div>`;
+    document.getElementById('statPortfolio').textContent = snap.size;
+  });
+}
+
+/* ---------------- QUOTE GENERATOR / BOQ CALCULATOR ----------------
+   Ring & radial circuit logic (Zambian/UK BS 7671-style practice):
+   - Lighting: radial circuit, 1.5mm² T&E, max 10 points per circuit (light fittings + switches)
+   - Sockets: ring circuit, 2.5mm² T&E, max 10 double sockets per ring (general guidance)
+   - Cable estimate per room: perimeter-based run + drop allowance to ceiling rose / socket height
+   - DB sized by total circuit count (rounded up to next standard way count: 4/8/12/16/24)
+------------------------------------------------------------------- */
+let roomCount = 0;
+function addRoom() {
+  roomCount++;
+  const id = 'room' + roomCount;
+  const div = document.createElement('div');
+  div.className = 'room-item';
+  div.id = id;
+  div.innerHTML = `
+    <div class="field"><label>Room Name</label><input class="rm-name" placeholder="e.g. Lounge"></div>
+    <div class="field"><label>Length (m)</label><input class="rm-len" type="number" step="0.1" placeholder="4"></div>
+    <div class="field"><label>Width (m)</label><input class="rm-wid" type="number" step="0.1" placeholder="3.5"></div>
+    <div class="field"><label>Sockets</label><input class="rm-sock" type="number" placeholder="4"></div>
+    <button class="btn btn-outline" style="padding:0.6rem 0.8rem;" onclick="document.getElementById('${id}').remove()">✕</button>
+  `;
+  document.getElementById('roomList').appendChild(div);
+}
+addRoom(); addRoom(); // seed with two rooms
+
+function calculateBOQ() {
+  const rooms = Array.from(document.querySelectorAll('.room-item')).map(el => ({
+    name: el.querySelector('.rm-name').value || 'Room',
+    len: parseFloat(el.querySelector('.rm-len').value) || 0,
+    wid: parseFloat(el.querySelector('.rm-wid').value) || 0,
+    sockets: parseInt(el.querySelector('.rm-sock').value) || 0
+  }));
+  if (!rooms.length) { showToast('Add at least one room'); return; }
+
+  let totalLightingPoints = rooms.length; // one ceiling point per room baseline
+  let totalSockets = rooms.reduce((s, r) => s + r.sockets, 0);
+  let lightingCableM = 0, socketCableM = 0;
+
+  rooms.forEach(r => {
+    const perimeter = 2 * (r.len + r.wid);
+    // lighting drop: perimeter run share + 2.5m drop to ceiling rose
+    lightingCableM += (perimeter * 0.3) + 2.5;
+    // ring: perimeter of sockets run + 0.3m drop per socket back to skirting
+    socketCableM += perimeter + (r.sockets * 0.3);
+  });
+  lightingCableM = Math.ceil(lightingCableM * 1.1); // 10% wastage allowance
+  socketCableM = Math.ceil(socketCableM * 1.1);
+
+  const lightingCircuits = Math.ceil(totalLightingPoints / 10);
+  const socketCircuits = Math.ceil(totalSockets / 10);
+  const totalCircuits = lightingCircuits + socketCircuits;
+  const dbWays = [4,8,12,16,24].find(w => w >= totalCircuits + 2) || 24; // +2 spare ways
+
+  const items = [
+    { item: '1.5mm² T&E cable (lighting)', qty: lightingCableM, unit: 'm' },
+    { item: '2.5mm² T&E cable (ring main)', qty: socketCableM, unit: 'm' },
+    { item: 'Ceiling roses', qty: rooms.length, unit: 'pcs' },
+    { item: '1-gang light switches', qty: rooms.length, unit: 'pcs' },
+    { item: 'Double sockets (13A)', qty: totalSockets, unit: 'pcs' },
+    { item: 'Consumer unit / DB', qty: `${dbWays}-way`, unit: 'unit' },
+    { item: 'MCBs (per circuit)', qty: totalCircuits, unit: 'pcs' },
+    { item: 'RCD/RCBO protection', qty: 1, unit: 'unit' },
+    { item: 'Earth cable & accessories', qty: 1, unit: 'set' },
+    { item: 'Trunking / conduit + clips', qty: Math.ceil((lightingCableM + socketCableM) * 0.15), unit: 'm' }
+  ];
+
+  document.getElementById('boqTable').innerHTML = items.map(i =>
+    `<tr><td>${i.item}</td><td>${i.qty}</td><td>${i.unit}</td></tr>`).join('');
+  document.getElementById('boqCircuits').textContent = `${lightingCircuits} lighting + ${socketCircuits} socket = ${totalCircuits} total`;
+  document.getElementById('boqOutput').style.display = 'block';
+  window._lastBOQ = { rooms, items, totalCircuits, dbWays };
+}
+
+function downloadQuote() {
+  if (!window._lastBOQ) { showToast('Calculate the BOQ first'); return; }
+  const name = document.getElementById('qCustName').value || 'Customer';
+  const phone = document.getElementById('qCustPhone').value || '';
+  const prop = document.getElementById('qPropType').value;
+  const { items, rooms } = window._lastBOQ;
+  const rowsHtml = items.map(i => `<tr><td style="padding:6px 10px;border:1px solid #ccc;">${i.item}</td><td style="padding:6px 10px;border:1px solid #ccc;">${i.qty}</td><td style="padding:6px 10px;border:1px solid #ccc;">${i.unit}</td></tr>`).join('');
+  const roomsHtml = rooms.map(r => `${r.name} (${r.len}m × ${r.wid}m, ${r.sockets} sockets)`).join('<br>');
+  const html = `
+    <html><head><meta charset="utf-8"><title>Quote</title></head>
+    <body style="font-family:Calibri,Arial,sans-serif;color:#222;">
+      <h1 style="color:#2E8B57;">BLume Power Technologies</h1>
+      <p style="color:#555;">House Wiring & Installations — Quotation</p>
+      <hr>
+      <p><strong>Customer:</strong> ${name}<br><strong>Phone:</strong> ${phone}<br><strong>Property type:</strong> ${prop}</p>
+      <p><strong>Rooms:</strong><br>${roomsHtml}</p>
+      <h3 style="color:#2E8B57;">Bill of Quantities</h3>
+      <table style="border-collapse:collapse;width:100%;">
+        <tr style="background:#0D1F17;color:#fff;"><th style="padding:6px 10px;border:1px solid #ccc;">Item</th><th style="padding:6px 10px;border:1px solid #ccc;">Qty</th><th style="padding:6px 10px;border:1px solid #ccc;">Unit</th></tr>
+        ${rowsHtml}
+      </table>
+      <p style="margin-top:20px;color:#888;font-size:12px;">Generated by BLume Power Technologies admin panel. Prices excluded — labor and material rates to be confirmed on-site. WhatsApp: +260 765 692 963</p>
+    </body></html>`;
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `BLume-Quote-${name.replace(/\s+/g,'-')}.doc`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('Quote downloaded');
+
+  // Optional EmailJS notify — fire and forget, mirrors SmartLab pattern
+  if (window.emailjs && EMAILJS_SERVICE_ID !== "YOUR_SERVICE_ID") {
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { name, phone, service: 'House Wiring Quote', details: roomsHtml })
+      .catch(err => console.warn('EmailJS send failed (non-blocking):', err));
+  }
+}
+
+/* ---------------- UTIL ---------------- */
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+</body>
+</html>
