@@ -9,7 +9,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script src="blume-config.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -243,7 +242,7 @@
           <div><h1>Leads</h1><p>Quote requests captured from the customer site.</p></div>
         </div>
         <div class="setup-note">
-          Currently the customer site sends quote requests straight to WhatsApp. Once Firebase is connected (see setup note in the script), submissions will also save here automatically and trigger an EmailJS notification — nothing gets lost if a WhatsApp message goes unanswered.
+          Currently the customer site sends quote requests straight to WhatsApp. Once Firebase is connected, submissions will save here automatically and trigger an EmailJS notification — nothing gets lost if a WhatsApp message goes unanswered.
         </div>
         <div class="card">
           <table>
@@ -331,10 +330,38 @@
 <div class="toast" id="toast"></div>
  
 <script>
-/* Firebase + EmailJS config now lives in blume-config.js, shared with the
-   customer site (index.html / services.html). Fill in that one file. */
-const EMAILJS_SERVICE_ID = window.BLUME_EMAILJS_SERVICE_ID || "service_arlambf";
-const EMAILJS_TEMPLATE_ID = window.BLUME_EMAILJS_TEMPLATE_ID || "template_cz8me08";
+/* Embedded Firebase & EmailJS Configuration */
+window.blumeFirebaseConfig = {
+  apiKey: "AIzaSyD31LX-rFk_Jme6gnx1n6qg8ic3wZSTK3g",
+  authDomain: "blume-power-technology.firebaseapp.com",
+  projectId: "blume-power-technology",
+  storageBucket: "blume-power-technology.firebasestorage.app",
+  messagingSenderId: "505398270145",
+  appId: "1:505398270145:web:35dfa429e8288f58ec5c40"
+};
+
+window.BLUME_EMAILJS_PUBLIC_KEY = "QCG0TzBGCPUlHKe1x";
+window.BLUME_EMAILJS_SERVICE_ID = "service_arlambf";
+window.BLUME_EMAILJS_TEMPLATE_ID = "template_cz8me08";
+
+// Initialization self-executing block
+(function () {
+  try {
+    if (window.firebase) {
+      firebase.initializeApp(window.blumeFirebaseConfig);
+      window.blumeDb = firebase.firestore();
+      if (firebase.auth) window.blumeAuth = firebase.auth();
+    }
+    if (window.emailjs && window.BLUME_EMAILJS_PUBLIC_KEY) {
+      emailjs.init(window.BLUME_EMAILJS_PUBLIC_KEY);
+    }
+  } catch (e) {
+    console.warn("BLume Firebase/EmailJS initialization warning:", e);
+  }
+})();
+
+const EMAILJS_SERVICE_ID = window.BLUME_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = window.BLUME_EMAILJS_TEMPLATE_ID;
  
 let fbReady = !!window.blumeDb;
 let db = window.blumeDb;
@@ -346,7 +373,7 @@ function doLogin() {
   const pass = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   errEl.textContent = "";
-  if (!fbReady) { errEl.textContent = "Firebase isn't connected yet — add your config in the script."; return; }
+  if (!fbReady) { errEl.textContent = "Firebase is not ready to connect."; return; }
   if (!email || !pass) { errEl.textContent = "Enter email and password."; return; }
   auth.signInWithEmailAndPassword(email, pass)
     .then(() => enterApp(email))
@@ -501,13 +528,7 @@ function loadPortfolio() {
   });
 }
  
-/* ---------------- QUOTE GENERATOR / BOQ CALCULATOR ----------------
-   Ring & radial circuit logic (Zambian/UK BS 7671-style practice):
-   - Lighting: radial circuit, 1.5mm² T&E, max 10 points per circuit (light fittings + switches)
-   - Sockets: ring circuit, 2.5mm² T&E, max 10 double sockets per ring (general guidance)
-   - Cable estimate per room: perimeter-based run + drop allowance to ceiling rose / socket height
-   - DB sized by total circuit count (rounded up to next standard way count: 4/8/12/16/24)
-------------------------------------------------------------------- */
+/* ---------------- QUOTE GENERATOR / BOQ CALCULATOR ---------------- */
 let roomCount = 0;
 function addRoom() {
   roomCount++;
@@ -535,24 +556,22 @@ function calculateBOQ() {
   }));
   if (!rooms.length) { showToast('Add at least one room'); return; }
  
-  let totalLightingPoints = rooms.length; // one ceiling point per room baseline
+  let totalLightingPoints = rooms.length;
   let totalSockets = rooms.reduce((s, r) => s + r.sockets, 0);
   let lightingCableM = 0, socketCableM = 0;
  
   rooms.forEach(r => {
     const perimeter = 2 * (r.len + r.wid);
-    // lighting drop: perimeter run share + 2.5m drop to ceiling rose
     lightingCableM += (perimeter * 0.3) + 2.5;
-    // ring: perimeter of sockets run + 0.3m drop per socket back to skirting
     socketCableM += perimeter + (r.sockets * 0.3);
   });
-  lightingCableM = Math.ceil(lightingCableM * 1.1); // 10% wastage allowance
+  lightingCableM = Math.ceil(lightingCableM * 1.1);
   socketCableM = Math.ceil(socketCableM * 1.1);
  
   const lightingCircuits = Math.ceil(totalLightingPoints / 10);
   const socketCircuits = Math.ceil(totalSockets / 10);
   const totalCircuits = lightingCircuits + socketCircuits;
-  const dbWays = [4,8,12,16,24].find(w => w >= totalCircuits + 2) || 24; // +2 spare ways
+  const dbWays = [4,8,12,16,24].find(w => w >= totalCircuits + 2) || 24;
  
   const items = [
     { item: '1.5mm² T&E cable (lighting)', qty: lightingCableM, unit: 'm' },
@@ -604,8 +623,7 @@ function downloadQuote() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   showToast('Quote downloaded');
  
-  // Optional EmailJS notify — fire and forget, mirrors SmartLab pattern
-  if (window.emailjs && EMAILJS_SERVICE_ID !== "service_arlambf") {
+  if (window.emailjs && EMAILJS_SERVICE_ID) {
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { name, phone, service: 'House Wiring Quote', details: roomsHtml })
       .catch(err => console.warn('EmailJS send failed (non-blocking):', err));
   }
