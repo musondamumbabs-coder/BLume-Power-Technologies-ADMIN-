@@ -333,8 +333,8 @@
 <script>
 /* Firebase + EmailJS config now lives in blume-config.js, shared with the
    customer site (index.html / services.html). Fill in that one file. */
-const EMAILJS_SERVICE_ID = window.BLUME_EMAILJS_SERVICE_ID || "YOUR_SERVICE_ID";
-const EMAILJS_TEMPLATE_ID = window.BLUME_EMAILJS_TEMPLATE_ID || "YOUR_TEMPLATE_ID";
+const EMAILJS_SERVICE_ID = window.BLUME_EMAILJS_SERVICE_ID || "service_arlambf";
+const EMAILJS_TEMPLATE_ID = window.BLUME_EMAILJS_TEMPLATE_ID || "template_cz8me08";
  
 let fbReady = !!window.blumeDb;
 let db = window.blumeDb;
@@ -605,7 +605,7 @@ function downloadQuote() {
   showToast('Quote downloaded');
  
   // Optional EmailJS notify — fire and forget, mirrors SmartLab pattern
-  if (window.emailjs && EMAILJS_SERVICE_ID !== "YOUR_SERVICE_ID") {
+  if (window.emailjs && EMAILJS_SERVICE_ID !== "service_arlambf") {
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { name, phone, service: 'House Wiring Quote', details: roomsHtml })
       .catch(err => console.warn('EmailJS send failed (non-blocking):', err));
   }
