@@ -211,6 +211,8 @@
       <button data-view="leads" onclick="showView('leads')"><span class="sidebar-icon">✉</span> Leads</button>
       <button data-view="pipeline" onclick="showView('pipeline')"><span class="sidebar-icon">▤</span> Pipeline</button>
       <button data-view="portfolio" onclick="showView('portfolio')"><span class="sidebar-icon">▣</span> Portfolio</button>
+      <button data-view="sellrequests" onclick="showView('sellrequests')"><span class="sidebar-icon">🔥</span> Stove Requests</button>
+      <button data-view="marketplace" onclick="showView('marketplace')"><span class="sidebar-icon">🛒</span> Stove Marketplace</button>
       <button data-view="quote" onclick="showView('quote')"><span class="sidebar-icon">✎</span> Quote Generator</button>
     </aside>
  
@@ -388,7 +390,7 @@ function enterApp(email) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
   document.getElementById('userEmailLabel').textContent = email || '';
-  if (fbReady) { loadLeads(); loadPortfolio(); loadPipeline(); }
+ if (fbReady) { loadLeads(); loadPortfolio(); loadPipeline(); loadSellRequests(); loadMarketplace(); loadBuyRequests(); }
 }
 if (fbReady) {
   auth.onAuthStateChanged(user => { if (user) enterApp(user.email); });
