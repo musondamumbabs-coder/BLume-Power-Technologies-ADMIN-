@@ -214,6 +214,7 @@
       <button data-view="sellrequests" onclick="showView('sellrequests')"><span class="sidebar-icon">🔥</span> Stove Requests</button>
       <button data-view="marketplace" onclick="showView('marketplace')"><span class="sidebar-icon">🛒</span> Stove Marketplace</button>
       <button data-view="quote" onclick="showView('quote')"><span class="sidebar-icon">✎</span> Quote Generator</button>
+     <button data-view="buycalc" onclick="showView('buycalc')"><span class="sidebar-icon">🧮</span> Buy Calculator</button>
     </aside>
  
     <main class="content">
@@ -366,6 +367,107 @@
       <thead><tr><th>Stove</th><th>Buyer</th><th>Contact</th><th>Reply Via</th><th>Status</th><th></th></tr></thead>
       <tbody id="buyReqTable"><tr><td colspan="6" class="empty-state">No buy requests yet.</td></tr></tbody>
     </table>
+  </div>
+</section>
+     <!-- ===== STOVE BUY CALCULATOR ===== -->
+<section class="view" id="view-buycalc">
+  <div class="view-header">
+    <div><h1>Stove Buy Calculator</h1><p>Rate a stove's parts to get a suggested buying price range.</p></div>
+  </div>
+
+  <div class="tabs" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;">
+    <button class="btn btn-outline" onclick="bcShowSub('calc')" id="bcTabCalc">Calculate</button>
+    <button class="btn btn-outline" onclick="bcShowSub('categories')" id="bcTabCategories">Categories</button>
+    <button class="btn btn-outline" onclick="bcShowSub('parts')" id="bcTabParts">Parts &amp; Costs</button>
+    <button class="btn btn-outline" onclick="bcShowSub('history')" id="bcTabHistory">History</button>
+  </div>
+
+  <!-- ---- CALCULATE ---- -->
+  <div class="bc-sub active" id="bc-sub-calc">
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="grid2">
+        <div class="field">
+          <label>Category (Size / Brand / Color)</label>
+          <select id="bcCategorySelect" onchange="bcOnCategoryChange()">
+            <option value="">Select a category...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Target Profit (K)</label>
+          <input id="bcMarginInput" type="number" min="0" value="400" onchange="bcRecalc()">
+        </div>
+      </div>
+      <div id="bcResaleDisplay" style="font-size:12.5px;color:rgba(255,255,255,0.5);"></div>
+    </div>
+
+    <div class="card" id="bcPartsCard" style="margin-bottom:1.5rem;">
+      <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:16px;margin-bottom:1rem;">Rate Each Part (1 = needs full repair, 10 = perfect)</h3>
+      <div id="bcPartsList"><p class="empty-state">Add parts under "Parts &amp; Costs" first.</p></div>
+    </div>
+
+    <div class="card" id="bcResultCard" style="display:none;">
+      <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:16px;margin-bottom:1rem;">Estimate</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="num" id="bcRefurbCost">K0</div><div class="label">Est. Refurb Cost</div></div>
+        <div class="stat"><div class="num" id="bcBuyRange">K0 – K0</div><div class="label">Suggested Buy Price</div></div>
+      </div>
+      <p id="bcWarning" style="display:none;color:var(--danger);font-size:13px;margin-bottom:1rem;">⚠ This category's resale range doesn't cover the refurb cost + profit target at this condition — buying it isn't likely to be worth it.</p>
+      <div class="field"><label>Notes (optional)</label><textarea id="bcNotes" placeholder="Seller name, location, anything worth remembering"></textarea></div>
+      <button class="btn" onclick="bcSaveCalculation()">Save to History</button>
+    </div>
+  </div>
+
+  <!-- ---- CATEGORIES ---- -->
+  <div class="bc-sub" id="bc-sub-categories">
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="grid2">
+        <div class="field"><label>Size</label><input id="catSize" placeholder="e.g. 4-Plate, 6-Plate, Table-top"></div>
+        <div class="field"><label>Brand</label><input id="catBrand" placeholder="e.g. Defy, Bruhm, Generic"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Color</label><input id="catColor" placeholder="e.g. White, Silver, Black"></div>
+        <div class="field"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Resale Price Low (K)</label><input id="catResaleLow" type="number" min="0"></div>
+        <div class="field"><label>Resale Price High (K)</label><input id="catResaleHigh" type="number" min="0"></div>
+      </div>
+      <button class="btn" onclick="bcSaveCategory()">Add Category</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Size</th><th>Brand</th><th>Color</th><th>Resale Range</th><th></th></tr></thead>
+        <tbody id="bcCategoryTable"><tr><td colspan="5" class="empty-state">No categories yet.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ---- PARTS ---- -->
+  <div class="bc-sub" id="bc-sub-parts">
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="grid2">
+        <div class="field"><label>Part Name</label><input id="partName" placeholder="e.g. Hotplates / Burners"></div>
+        <div class="field"><label>Full Repair Cost (K)</label><input id="partCost" type="number" min="0" placeholder="Cost if rated 1/10"></div>
+      </div>
+      <button class="btn" onclick="bcSavePart()">Add Part</button>
+      <div class="form-note" style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:0.5rem;">This is what it costs to fully fix this part from scratch. A rating of 10 means K0 cost; a rating of 1 means nearly this full cost.</div>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Part</th><th>Full Repair Cost</th><th></th></tr></thead>
+        <tbody id="bcPartsTable"><tr><td colspan="3" class="empty-state">No parts yet — add Body, Burners, Oven, Ignition, Knobs, Glass Door, etc.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ---- HISTORY ---- -->
+  <div class="bc-sub" id="bc-sub-history">
+    <div class="card">
+      <table>
+        <thead><tr><th>Date</th><th>Category</th><th>Refurb Cost</th><th>Suggested Range</th><th>Notes</th><th>Status</th><th></th></tr></thead>
+        <tbody id="bcHistoryTable"><tr><td colspan="7" class="empty-state">No calculations saved yet.</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </section>
     </main>
@@ -534,7 +636,7 @@ function enterApp(email) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
   document.getElementById('userEmailLabel').textContent = email || '';
- if (fbReady) { loadLeads(); loadPortfolio(); loadPipeline(); loadSellRequests(); loadMarketplace(); loadBuyRequests(); }
+if (fbReady) { loadLeads(); loadPortfolio(); loadPipeline(); loadSellRequests(); loadMarketplace(); loadBuyRequests(); loadBcCategories(); loadBcParts(); loadBcHistory(); }
 }
 if (fbReady) {
   auth.onAuthStateChanged(user => { if (user) enterApp(user.email); });
@@ -552,8 +654,7 @@ function showToast(msg) {
   t.textContent = msg; t.style.display = 'block';
   setTimeout(() => t.style.display = 'none', 2600);
 }
- 
-/* ---------------- LEADS ---------------- */
+ /* ---------------- LEADS ---------------- */
 function loadLeads() {
   db.collection('leads').orderBy('createdAt', 'desc').onSnapshot(snap => {
     const rows = [];
@@ -778,6 +879,177 @@ function downloadQuote() {
 /* ---------------- UTIL ---------------- */
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+ /* ---------------- STOVE BUY CALCULATOR ---------------- */
+let bcCategories = [];
+let bcParts = [];
+let bcRatings = {}; // partId -> rating
+
+function bcShowSub(name) {
+  document.querySelectorAll('.bc-sub').forEach(s => s.classList.remove('active'));
+  document.getElementById('bc-sub-' + name).classList.add('active');
+  document.querySelectorAll('[id^="bcTab"]').forEach(b => b.style.background = 'transparent');
+  document.getElementById('bcTab' + name.charAt(0).toUpperCase() + name.slice(1)).style.background = 'rgba(46,139,87,0.18)';
+}
+bcShowSub('calc');
+
+/* ---- Categories ---- */
+function bcSaveCategory() {
+  const size = document.getElementById('catSize').value.trim();
+  const brand = document.getElementById('catBrand').value.trim();
+  const color = document.getElementById('catColor').value.trim();
+  const resaleLow = parseFloat(document.getElementById('catResaleLow').value) || 0;
+  const resaleHigh = parseFloat(document.getElementById('catResaleHigh').value) || 0;
+  if (!size || !brand || !resaleLow || !resaleHigh) { showToast('Fill in size, brand, and resale range'); return; }
+  db.collection('stoveCategories').add({
+    size, brand, color, resaleLow, resaleHigh, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    ['catSize','catBrand','catColor','catResaleLow','catResaleHigh'].forEach(id => document.getElementById(id).value = '');
+    showToast('Category added');
+  });
+}
+function loadBcCategories() {
+  if (!db) return;
+  db.collection('stoveCategories').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    bcCategories = [];
+    const rows = [];
+    const select = document.getElementById('bcCategorySelect');
+    select.innerHTML = '<option value="">Select a category...</option>';
+    snap.forEach(doc => {
+      const d = doc.data();
+      bcCategories.push({ id: doc.id, ...d });
+      rows.push(`<tr>
+        <td>${escapeHtml(d.size)}</td><td>${escapeHtml(d.brand)}</td><td>${escapeHtml(d.color||'—')}</td>
+        <td>K${d.resaleLow} – K${d.resaleHigh}</td>
+        <td class="row-actions"><button class="del" onclick="deleteDoc('stoveCategories','${doc.id}')">Delete</button></td>
+      </tr>`);
+      select.innerHTML += `<option value="${doc.id}">${escapeHtml(d.size)} · ${escapeHtml(d.brand)} · ${escapeHtml(d.color||'')}</option>`;
+    });
+    document.getElementById('bcCategoryTable').innerHTML = rows.length ? rows.join('') : `<tr><td colspan="5" class="empty-state">No categories yet.</td></tr>`;
+  });
+}
+
+/* ---- Parts ---- */
+function bcSavePart() {
+  const name = document.getElementById('partName').value.trim();
+  const cost = parseFloat(document.getElementById('partCost').value) || 0;
+  if (!name || !cost) { showToast('Fill in part name and cost'); return; }
+  db.collection('stoveParts').add({ name, baseCost: cost, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+    .then(() => { document.getElementById('partName').value = ''; document.getElementById('partCost').value = ''; showToast('Part added'); });
+}
+function loadBcParts() {
+  if (!db) return;
+  db.collection('stoveParts').orderBy('createdAt', 'asc').onSnapshot(snap => {
+    bcParts = [];
+    const rows = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      bcParts.push({ id: doc.id, ...d });
+      rows.push(`<tr>
+        <td>${escapeHtml(d.name)}</td><td>K${d.baseCost}</td>
+        <td class="row-actions"><button class="del" onclick="deleteDoc('stoveParts','${doc.id}')">Delete</button></td>
+      </tr>`);
+    });
+    document.getElementById('bcPartsTable').innerHTML = rows.length ? rows.join('') : `<tr><td colspan="3" class="empty-state">No parts yet.</td></tr>`;
+    bcRenderPartsRatingList();
+  });
+}
+function bcRenderPartsRatingList() {
+  const wrap = document.getElementById('bcPartsList');
+  if (!bcParts.length) { wrap.innerHTML = '<p class="empty-state">Add parts under "Parts &amp; Costs" first.</p>'; return; }
+  wrap.innerHTML = bcParts.map(p => {
+    const rating = bcRatings[p.id] ?? 10;
+    return `<div style="margin-bottom:1rem;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:0.35rem;">
+        <span>${escapeHtml(p.name)}</span><span class="mono" id="bcRatingVal-${p.id}">${rating}/10</span>
+      </div>
+      <input type="range" min="1" max="10" value="${rating}" style="width:100%;"
+        oninput="bcRatings['${p.id}']=parseInt(this.value);document.getElementById('bcRatingVal-${p.id}').textContent=this.value+'/10';bcRecalc();">
+    </div>`;
+  }).join('');
+}
+
+/* ---- Calculation ---- */
+function bcOnCategoryChange() {
+  const catId = document.getElementById('bcCategorySelect').value;
+  const cat = bcCategories.find(c => c.id === catId);
+  const disp = document.getElementById('bcResaleDisplay');
+  disp.textContent = cat ? `Resale range for this category: K${cat.resaleLow} – K${cat.resaleHigh}` : '';
+  bcRecalc();
+}
+function bcRecalc() {
+  const catId = document.getElementById('bcCategorySelect').value;
+  const cat = bcCategories.find(c => c.id === catId);
+  const margin = parseFloat(document.getElementById('bcMarginInput').value) || 0;
+  if (!cat || !bcParts.length) { document.getElementById('bcResultCard').style.display = 'none'; return; }
+
+  let refurbCost = 0;
+  bcParts.forEach(p => {
+    const rating = bcRatings[p.id] ?? 10;
+    refurbCost += p.baseCost * (10 - rating) / 10;
+  });
+
+  let buyLow = cat.resaleLow - refurbCost - margin;
+  let buyHigh = cat.resaleHigh - refurbCost - margin;
+  const notWorth = buyHigh <= 0;
+  buyLow = Math.max(0, Math.round(buyLow));
+  buyHigh = Math.max(0, Math.round(buyHigh));
+
+  document.getElementById('bcRefurbCost').textContent = 'K' + Math.round(refurbCost);
+  document.getElementById('bcBuyRange').textContent = `K${buyLow} – K${buyHigh}`;
+  document.getElementById('bcWarning').style.display = notWorth ? 'block' : 'none';
+  document.getElementById('bcResultCard').style.display = 'block';
+  window._bcLast = { catId, cat, refurbCost, margin, buyLow, buyHigh, ratings: { ...bcRatings } };
+}
+function bcSaveCalculation() {
+  if (!window._bcLast) { showToast('Rate the parts first'); return; }
+  const { cat, refurbCost, margin, buyLow, buyHigh, ratings } = window._bcLast;
+  const notes = document.getElementById('bcNotes').value.trim();
+  db.collection('buyCalculations').add({
+    categorySummary: `${cat.size} · ${cat.brand} · ${cat.color||''}`,
+    resaleLow: cat.resaleLow, resaleHigh: cat.resaleHigh,
+    refurbCost: Math.round(refurbCost), margin, buyLow, buyHigh, ratings, notes,
+    status: 'evaluated', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => { showToast('Saved to history'); document.getElementById('bcNotes').value = ''; });
+}
+function loadBcHistory() {
+  if (!db) return;
+  db.collection('buyCalculations').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const rows = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      rows.push(`<tr>
+        <td>${fmtDate(d.createdAt)}</td>
+        <td>${escapeHtml(d.categorySummary||'')}</td>
+        <td>K${d.refurbCost}</td>
+        <td>K${d.buyLow} – K${d.buyHigh}</td>
+        <td>${escapeHtml(d.notes||'—')}</td>
+        <td>
+          <select class="pill-select" onchange="db.collection('buyCalculations').doc('${doc.id}').update({status:this.value});showToast('Updated')">
+            <option value="evaluated" ${d.status==='evaluated'?'selected':''}>Evaluated</option>
+            <option value="purchased" ${d.status==='purchased'?'selected':''}>Purchased</option>
+            <option value="skipped" ${d.status==='skipped'?'selected':''}>Skipped</option>
+          </select>
+        </td>
+        <td class="row-actions">
+          <button onclick="bcSendToMarketplace('${doc.id}')">Send to Marketplace</button>
+          <button class="del" onclick="deleteDoc('buyCalculations','${doc.id}')">Delete</button>
+        </td>
+      </tr>`);
+    });
+    document.getElementById('bcHistoryTable').innerHTML = rows.length ? rows.join('') : `<tr><td colspan="7" class="empty-state">No calculations saved yet.</td></tr>`;
+  });
+}
+function bcSendToMarketplace(id) {
+  db.collection('buyCalculations').doc(id).get().then(doc => {
+    const d = doc.data();
+    showView('marketplace');
+    openStoveForm();
+    document.getElementById('stTitle').value = d.categorySummary || '';
+    document.getElementById('stPrice').value = d.resaleHigh || '';
+    document.getElementById('stDesc').value = `Refurbished ${d.categorySummary}. ${d.notes||''}`.trim();
+    showToast('Pre-filled listing form — add a photo and save');
+  });
 }
 </script>
 </body>
