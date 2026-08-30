@@ -250,6 +250,7 @@
       <button data-view="marketplace" onclick="showView('marketplace')"><span class="sidebar-icon">🛒</span> Stove Marketplace</button>
       <button data-view="quote" onclick="showView('quote')"><span class="sidebar-icon">✎</span> Quote Generator</button>
      <button data-view="buycalc" onclick="showView('buycalc')"><span class="sidebar-icon">🧮</span> Buy Calculator</button>
+     <button data-view="products" onclick="showView('products')"><span class="sidebar-icon">📦</span> Products</button>
     </aside>
  
     <main class="content">
@@ -505,6 +506,33 @@
     </div>
   </div>
 </section>
+     <!-- ===== PRODUCTS ===== -->
+<section class="view" id="view-products">
+  <div class="view-header">
+    <div><h1>Products</h1><p>Manage what shows on the public Products page.</p></div>
+    <button class="btn" onclick="openProductForm()">+ Add Product</button>
+  </div>
+
+  <div id="productFormWrap" style="display:none;" class="card" style="margin-bottom:1.5rem;">
+    <div class="grid2">
+      <div class="field"><label>Product Name</label><input id="prodName" placeholder="e.g. Z-Guard Motion Sensor"></div>
+      <div class="field"><label>Price / Tag (optional)</label><input id="prodPrice" placeholder="e.g. K450 or leave blank"></div>
+    </div>
+    <div class="field"><label>Description</label><textarea id="prodDesc" placeholder="Short description shown on the product card"></textarea></div>
+    <div class="field"><label>Image URL</label><input id="prodImage" placeholder="https://..."></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:0.5rem;text-transform:none;font-size:13px;">
+        <input type="checkbox" id="prodComingSoon" style="width:auto;"> Mark as "Coming Soon"
+      </label>
+    </div>
+    <button class="btn" onclick="saveProduct()">Save Product</button>
+    <button class="btn btn-outline" onclick="closeProductForm()">Cancel</button>
+  </div>
+
+  <div class="portfolio-grid" id="productsGrid">
+    <div class="empty-state" style="grid-column:1/-1;">No products listed yet.</div>
+  </div>
+</section>
     </main>
   </div>
 </div>
@@ -671,7 +699,7 @@ function enterApp(email) {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
   document.getElementById('userEmailLabel').textContent = email || '';
-if (fbReady) { loadLeads(); loadPortfolio(); loadPipeline(); loadSellRequests(); loadMarketplace(); loadBuyRequests(); loadBcCategories(); loadBcParts(); loadBcHistory(); }
+if (fbReady) { loadLeads(); loadPortfolio(); loadPipeline(); loadSellRequests(); loadMarketplace(); loadBuyRequests(); loadBcCategories(); loadBcParts(); loadBcHistory(); loadProducts(); }
 }
 if (fbReady) {
   auth.onAuthStateChanged(user => { if (user) enterApp(user.email); });
@@ -1090,6 +1118,81 @@ function bcSendToMarketplace(id) {
     document.getElementById('stPrice').value = d.resaleHigh || '';
     document.getElementById('stDesc').value = `Refurbished ${d.categorySummary}. ${d.notes||''}`.trim();
     showToast('Pre-filled listing form — add a photo and save');
+  });
+}
+ /* ---------------- PRODUCTS ---------------- */
+let editingProductId = null;
+function openProductForm(id) {
+  editingProductId = id || null;
+  document.getElementById('productFormWrap').style.display = 'block';
+  if (!id) {
+    document.getElementById('prodName').value = '';
+    document.getElementById('prodPrice').value = '';
+    document.getElementById('prodDesc').value = '';
+    document.getElementById('prodImage').value = '';
+    document.getElementById('prodComingSoon').checked = false;
+  }
+}
+function closeProductForm() { document.getElementById('productFormWrap').style.display = 'none'; editingProductId = null; }
+
+function saveProduct() {
+  const name = document.getElementById('prodName').value.trim();
+  if (!name) { showToast('Product name required'); return; }
+  const data = {
+    name,
+    price: document.getElementById('prodPrice').value.trim(),
+    description: document.getElementById('prodDesc').value.trim(),
+    image: document.getElementById('prodImage').value.trim(),
+    comingSoon: document.getElementById('prodComingSoon').checked
+  };
+  if (editingProductId) {
+    db.collection('products').doc(editingProductId).update(data)
+      .then(() => { closeProductForm(); showToast('Product updated'); });
+  } else {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('products').add(data)
+      .then(() => { closeProductForm(); showToast('Product added'); });
+  }
+}
+
+function editProduct(id) {
+  db.collection('products').doc(id).get().then(doc => {
+    const d = doc.data();
+    document.getElementById('prodName').value = d.name || '';
+    document.getElementById('prodPrice').value = d.price || '';
+    document.getElementById('prodDesc').value = d.description || '';
+    document.getElementById('prodImage').value = d.image || '';
+    document.getElementById('prodComingSoon').checked = !!d.comingSoon;
+    openProductForm(id);
+  });
+}
+
+function toggleComingSoon(id, current) {
+  db.collection('products').doc(id).update({ comingSoon: !current });
+  showToast(!current ? 'Marked Coming Soon' : 'Marked available');
+}
+
+function loadProducts() {
+  if (!db) return;
+  db.collection('products').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const cards = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      cards.push(`<div class="p-card">
+        <img src="${escapeHtml(d.image||'')}" onerror="this.style.display='none'">
+        <div class="p-card-body">
+          <h4>${escapeHtml(d.name||'')} ${d.comingSoon ? '<span class="pill pill-new">Coming Soon</span>' : ''}</h4>
+          <p>${escapeHtml(d.description||'')} ${d.price ? '· '+escapeHtml(d.price) : ''}</p>
+          <div class="row-actions" style="margin-top:0.5rem;">
+            <button onclick="editProduct('${doc.id}')">Edit</button>
+            <button onclick="toggleComingSoon('${doc.id}', ${!!d.comingSoon})">${d.comingSoon ? 'Mark available' : 'Mark coming soon'}</button>
+            <button class="del" onclick="deleteDoc('products','${doc.id}')">Delete</button>
+          </div>
+        </div>
+      </div>`);
+    });
+    document.getElementById('productsGrid').innerHTML = cards.length ? cards.join('') :
+      `<div class="empty-state" style="grid-column:1/-1;">No products listed yet.</div>`;
   });
 }
 </script>
