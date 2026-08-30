@@ -246,7 +246,8 @@
       <button data-view="leads" onclick="showView('leads')"><span class="sidebar-icon">✉</span> Leads</button>
       <button data-view="pipeline" onclick="showView('pipeline')"><span class="sidebar-icon">▤</span> Pipeline</button>
       <button data-view="portfolio" onclick="showView('portfolio')"><span class="sidebar-icon">▣</span> Portfolio</button>
-      <button data-view="sellrequests" onclick="showView('sellrequests')"><span class="sidebar-icon">🔥</span> Stove Requests</button>
+      <button data-view="products" onclick="showView('products')"><span class="sidebar-icon">📦</span> Products</button>
+     <button data-view="sellrequests" onclick="showView('sellrequests')"><span class="sidebar-icon">🔥</span> Stove Requests</button>
       <button data-view="marketplace" onclick="showView('marketplace')"><span class="sidebar-icon">🛒</span> Stove Marketplace</button>
       <button data-view="quote" onclick="showView('quote')"><span class="sidebar-icon">✎</span> Quote Generator</button>
      <button data-view="buycalc" onclick="showView('buycalc')"><span class="sidebar-icon">🧮</span> Buy Calculator</button>
@@ -524,6 +525,73 @@
       <label style="display:flex;align-items:center;gap:0.5rem;text-transform:none;font-size:13px;">
         <input type="checkbox" id="prodComingSoon" style="width:auto;"> Mark as "Coming Soon"
       </label>
+    </div>
+    <button class="btn" onclick="saveProduct()">Save Product</button>
+    <button class="btn btn-outline" onclick="closeProductForm()">Cancel</button>
+  </div>
+
+  <div class="portfolio-grid" id="productsGrid">
+    <div class="empty-state" style="grid-column:1/-1;">No products listed yet.</div>
+  </div>
+</section>
+     <!-- ===== PRODUCTS ===== -->
+<section class="view" id="view-products">
+  <div class="view-header">
+    <div><h1>Products</h1><p>Manage what shows on the public Products page.</p></div>
+    <button class="btn" onclick="openProductForm()">+ Add Product</button>
+  </div>
+
+  <div id="productFormWrap" style="display:none;" class="card" style="margin-bottom:1.5rem;">
+    <div class="grid2">
+      <div class="field"><label>Product Name</label><input id="prodName" placeholder="e.g. Z-Guard Motion Sensor"></div>
+      <div class="field"><label>Price / Tag (optional)</label><input id="prodPrice" placeholder="e.g. K450 or leave blank"></div>
+    </div>
+    <div class="field"><label>Description</label><textarea id="prodDesc" placeholder="Short description shown on the product card"></textarea></div>
+    <div class="field"><label>Image URL</label><input id="prodImage" placeholder="https://..."></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:0.5rem;text-transform:none;font-size:13px;">
+        <input type="checkbox" id="prodComingSoon" style="width:auto;"> Mark as "Coming Soon"
+      </label>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:0.5rem;text-transform:none;font-size:13px;">
+        <input type="checkbox" id="prodFeatured" style="width:auto;"> Featured (shows as the big hero product on the page)
+    <button class="btn" onclick="saveProduct()">Save Product</button>
+    <button class="btn btn-outline" onclick="closeProductForm()">Cancel</button>
+  </div>
+
+  <div class="portfolio-grid" id="productsGrid">
+    <div class="empty-state" style="grid-column:1/-1;">No products listed yet.</div>
+  </div>
+</section>
+     <!-- ===== PRODUCTS ===== -->
+<section class="view" id="view-products">
+  <div class="view-header">
+    <div><h1>Products</h1><p>Manage what shows on the public Products page.</p></div>
+    <button class="btn" onclick="openProductForm()">+ Add Product</button>
+  </div>
+
+  <div id="productFormWrap" style="display:none;" class="card" style="margin-bottom:1.5rem;">
+    <div class="grid2">
+      <div class="field"><label>Product Name</label><input id="prodName" placeholder="e.g. Z-Guard Motion Sensor"></div>
+      <div class="field"><label>Price / Tag (optional)</label><input id="prodPrice" placeholder="e.g. K450 or leave blank"></div>
+    </div>
+    <div class="field"><label>Description</label><textarea id="prodDesc" placeholder="Full description — this builds the product's own detail page automatically, so write as much as you want here"></textarea></div>
+    <div class="field"><label>Image URL</label><input id="prodImage" placeholder="https://..."></div>
+    <div class="grid2">
+      <div class="field">
+        <label>Status</label>
+        <select id="prodStatus">
+          <option value="available">Available</option>
+          <option value="sold_out">Sold Out</option>
+          <option value="coming_soon">Coming Soon</option>
+        </select>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:0.5rem;text-transform:none;font-size:13px;margin-top:1.9rem;">
+          <input type="checkbox" id="prodFeatured" style="width:auto;"> Featured (shows as the big hero product on the page)
+        </label>
+      </div>
     </div>
     <button class="btn" onclick="saveProduct()">Save Product</button>
     <button class="btn btn-outline" onclick="closeProductForm()">Cancel</button>
@@ -1186,6 +1254,103 @@ function loadProducts() {
           <div class="row-actions" style="margin-top:0.5rem;">
             <button onclick="editProduct('${doc.id}')">Edit</button>
             <button onclick="toggleComingSoon('${doc.id}', ${!!d.comingSoon})">${d.comingSoon ? 'Mark available' : 'Mark coming soon'}</button>
+            <button class="del" onclick="deleteDoc('products','${doc.id}')">Delete</button>
+          </div>
+        </div>
+      </div>`);
+    });
+    document.getElementById('productsGrid').innerHTML = cards.length ? cards.join('') :
+      `<div class="empty-state" style="grid-column:1/-1;">No products listed yet.</div>`;
+  });
+}
+ /* ---------------- PRODUCTS ---------------- */
+let editingProductId = null;
+function openProductForm(id) {
+  editingProductId = id || null;
+  document.getElementById('productFormWrap').style.display = 'block';
+  if (!id) {
+    document.getElementById('prodName').value = '';
+    document.getElementById('prodPrice').value = '';
+    document.getElementById('prodDesc').value = '';
+    document.getElementById('prodImage').value = '';
+    document.getElementById('prodStatus').value = 'available';
+    document.getElementById('prodFeatured').checked = false;
+  }
+}
+function closeProductForm() { document.getElementById('productFormWrap').style.display = 'none'; editingProductId = null; }
+
+async function saveProduct() {
+  const name = document.getElementById('prodName').value.trim();
+  if (!name) { showToast('Product name required'); return; }
+  const featured = document.getElementById('prodFeatured').checked;
+  const data = {
+    name,
+    price: document.getElementById('prodPrice').value.trim(),
+    description: document.getElementById('prodDesc').value.trim(),
+    image: document.getElementById('prodImage').value.trim(),
+    status: document.getElementById('prodStatus').value,
+    featured
+  };
+  // Only one product can be Featured at a time — unset any existing one first
+  if (featured) {
+    const existing = await db.collection('products').where('featured', '==', true).get();
+    const batch = db.batch();
+    existing.forEach(doc => { if (doc.id !== editingProductId) batch.update(doc.ref, { featured: false }); });
+    await batch.commit();
+  }
+  if (editingProductId) {
+    db.collection('products').doc(editingProductId).update(data)
+      .then(() => { closeProductForm(); showToast('Product updated'); });
+  } else {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('products').add(data)
+      .then(() => { closeProductForm(); showToast('Product added'); });
+  }
+}
+
+function editProduct(id) {
+  db.collection('products').doc(id).get().then(doc => {
+    const d = doc.data();
+    document.getElementById('prodName').value = d.name || '';
+    document.getElementById('prodPrice').value = d.price || '';
+    document.getElementById('prodDesc').value = d.description || '';
+    document.getElementById('prodImage').value = d.image || '';
+    document.getElementById('prodStatus').value = d.status || 'available';
+    document.getElementById('prodFeatured').checked = !!d.featured;
+    openProductForm(id);
+  });
+}
+
+function updateProductStatus(id, status) {
+  db.collection('products').doc(id).update({ status });
+  showToast('Status updated');
+}
+
+function productStatusLabel(status) {
+  const map = { available: ['Available','pill-complete'], sold_out: ['Sold Out','pill-progress'], coming_soon: ['Coming Soon','pill-new'] };
+  return map[status] || map.available;
+}
+
+function loadProducts() {
+  if (!db) return;
+  db.collection('products').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const cards = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const [label, cls] = productStatusLabel(d.status);
+      cards.push(`<div class="p-card">
+        <img src="${escapeHtml(d.image||'')}" onerror="this.style.display='none'">
+        <div class="p-card-body">
+          <h4>${escapeHtml(d.name||'')} ${d.featured ? '<span class="pill pill-quoted">Featured</span>' : ''}</h4>
+          <p>${escapeHtml(d.description||'')} ${d.price ? '· '+escapeHtml(d.price) : ''}</p>
+          <select class="pill-select" style="margin-top:0.5rem;" onchange="updateProductStatus('${doc.id}', this.value)">
+            <option value="available" ${d.status==='available'?'selected':''}>Available</option>
+            <option value="sold_out" ${d.status==='sold_out'?'selected':''}>Sold Out</option>
+            <option value="coming_soon" ${d.status==='coming_soon'?'selected':''}>Coming Soon</option>
+          </select>
+          <div class="row-actions" style="margin-top:0.5rem;">
+            <button onclick="editProduct('${doc.id}')">Edit</button>
+            <a href="https://YOUR-CUSTOMER-SITE-URL/product-detail.html?id=${doc.id}" target="_blank" style="color:var(--green-light);font-size:12px;text-decoration:none;">View page ↗</a>
             <button class="del" onclick="deleteDoc('products','${doc.id}')">Delete</button>
           </div>
         </div>
