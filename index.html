@@ -510,15 +510,25 @@
     </div>
   </div>
 
-  <!-- ---- HISTORY ---- -->
-  <div class="bc-sub" id="bc-sub-history">
-    <div class="card">
-      <table>
-        <thead><tr><th>Date</th><th>Category</th><th>Refurb Cost</th><th>Suggested Range</th><th>Notes</th><th>Status</th><th></th></tr></thead>
-        <tbody id="bcHistoryTable"><tr><td colspan="7" class="empty-state">No calculations saved yet.</td></tr></tbody>
-      </table>
-    </div>
+ <!-- ---- HISTORY ---- -->
+<div class="bc-sub" id="bc-sub-history">
+  <div class="stat-row" id="bcAccuracyStats">
+    <div class="stat"><div class="num" id="bcAvgRefurbVariance">—</div><div class="label">Avg Refurb Accuracy</div></div>
+    <div class="stat"><div class="num" id="bcAvgBuyVariance">—</div><div class="label">Avg Buy Price Accuracy</div></div>
+    <div class="stat"><div class="num" id="bcTotalProfit">K0</div><div class="label">Total Realized Profit</div></div>
+    <div class="stat"><div class="num" id="bcSoldCount">0</div><div class="label">Stoves Sold &amp; Logged</div></div>
   </div>
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Category</th><th>Predicted Refurb</th><th>Predicted Buy Range</th>
+        <th>Actual Paid</th><th>Actual Refurb Spend</th><th>Actual Sale Price</th><th>Profit</th>
+        <th>Notes</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody id="bcHistoryTable"><tr><td colspan="11" class="empty-state">No calculations saved yet.</td></tr></tbody>
+    </table>
+  </div>
+</div>
 </section>
    <!-- ===== PRODUCTS ===== -->
 <section class="view" id="view-products">
@@ -1159,13 +1169,38 @@ function loadBcHistory() {
   if (!db) return;
   db.collection('buyCalculations').orderBy('createdAt', 'desc').onSnapshot(snap => {
     const rows = [];
+    let refurbVariances = [], buyVariances = [], totalProfit = 0, soldCount = 0;
+
     snap.forEach(doc => {
       const d = doc.data();
+      const paid = d.actualPricePaid ?? null;
+      const spend = d.actualRefurbSpend ?? null;
+      const sale = d.actualSalePrice ?? null;
+
+      let profitDisplay = '—';
+      if (paid !== null && spend !== null && sale !== null) {
+        const profit = sale - paid - spend;
+        profitDisplay = `K${profit}`;
+        totalProfit += profit;
+        soldCount++;
+      }
+      if (spend !== null && d.refurbCost) {
+        refurbVariances.push((spend - d.refurbCost) / d.refurbCost);
+      }
+      if (paid !== null) {
+        const buyMid = (d.buyLow + d.buyHigh) / 2;
+        if (buyMid) buyVariances.push((paid - buyMid) / buyMid);
+      }
+
       rows.push(`<tr>
         <td>${fmtDate(d.createdAt)}</td>
         <td>${escapeHtml(d.categorySummary||'')}</td>
         <td>K${d.refurbCost}</td>
         <td>K${d.buyLow} – K${d.buyHigh}</td>
+        <td><input type="number" class="job-date" style="width:70px;" value="${paid ?? ''}" placeholder="K" onchange="updateBcOutcome('${doc.id}','actualPricePaid',this.value)"></td>
+        <td><input type="number" class="job-date" style="width:70px;" value="${spend ?? ''}" placeholder="K" onchange="updateBcOutcome('${doc.id}','actualRefurbSpend',this.value)"></td>
+        <td><input type="number" class="job-date" style="width:70px;" value="${sale ?? ''}" placeholder="K" onchange="updateBcOutcome('${doc.id}','actualSalePrice',this.value)"></td>
+        <td>${profitDisplay}</td>
         <td>${escapeHtml(d.notes||'—')}</td>
         <td>
           <select class="pill-select" onchange="db.collection('buyCalculations').doc('${doc.id}').update({status:this.value});showToast('Updated')">
@@ -1180,8 +1215,24 @@ function loadBcHistory() {
         </td>
       </tr>`);
     });
-    document.getElementById('bcHistoryTable').innerHTML = rows.length ? rows.join('') : `<tr><td colspan="7" class="empty-state">No calculations saved yet.</td></tr>`;
+
+    document.getElementById('bcHistoryTable').innerHTML = rows.length ? rows.join('') :
+      `<tr><td colspan="11" class="empty-state">No calculations saved yet.</td></tr>`;
+
+    // Accuracy summary
+    const avg = arr => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null;
+    const fmtPct = v => v === null ? '—' : (v >= 0 ? '+' : '') + Math.round(v * 100) + '%';
+    document.getElementById('bcAvgRefurbVariance').textContent = fmtPct(avg(refurbVariances));
+    document.getElementById('bcAvgBuyVariance').textContent = fmtPct(avg(buyVariances));
+    document.getElementById('bcTotalProfit').textContent = 'K' + Math.round(totalProfit);
+    document.getElementById('bcSoldCount').textContent = soldCount;
   });
+}
+
+function updateBcOutcome(id, field, value) {
+  const num = value === '' ? null : parseFloat(value);
+  db.collection('buyCalculations').doc(id).update({ [field]: num });
+  showToast('Saved');
 }
 function bcSendToMarketplace(id) {
   db.collection('buyCalculations').doc(id).get().then(doc => {
