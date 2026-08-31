@@ -455,6 +455,10 @@
       <div id="bcPartsList"><p class="empty-state">Add parts under "Parts &amp; Costs" first.</p></div>
     </div>
 
+   <div class="stat-row">
+  <div class="stat"><div class="num" id="bcRefurbCost">K0</div><div class="label">Est. Refurb Cost</div></div>
+  <div class="stat"><div class="num" id="bcBuyRange">K0 – K0</div><div class="label">Suggested Buy Price</div></div>
+   </div>
     <div class="card" id="bcResultCard" style="display:none;">
       <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:16px;margin-bottom:1rem;">Estimate</h3>
       <div class="stat-row">
@@ -1150,13 +1154,13 @@ function bcRecalc() {
 
   document.getElementById('bcRefurbCost').textContent = 'K' + Math.round(refurbCost);
   document.getElementById('bcBuyRange').textContent = `K${buyLow} – K${buyHigh}`;
+ document.getElementById('bcTargetPrice').textContent = 'K' + Math.round((buyLow + buyHigh) / 2);
   document.getElementById('bcWarning').style.display = notWorth ? 'block' : 'none';
   document.getElementById('bcResultCard').style.display = 'block';
-  window._bcLast = { catId, cat, refurbCost, margin, buyLow, buyHigh, ratings: { ...bcRatings } };
-}
+  window._bcLast = { catId, cat, refurbCost, margin, buyLow, buyHigh, targetPrice: Math.round((buyLow + buyHigh) / 2), ratings: { ...bcRatings } };
 function bcSaveCalculation() {
   if (!window._bcLast) { showToast('Rate the parts first'); return; }
-  const { cat, refurbCost, margin, buyLow, buyHigh, ratings } = window._bcLast;
+ const { cat, refurbCost, margin, buyLow, buyHigh, targetPrice, ratings } = window._bcLast;
   const notes = document.getElementById('bcNotes').value.trim();
   db.collection('buyCalculations').add({
     categorySummary: `${cat.size} · ${cat.brand} · ${cat.color||''}`,
