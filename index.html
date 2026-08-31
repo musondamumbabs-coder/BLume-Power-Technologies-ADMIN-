@@ -199,6 +199,12 @@
     .board { grid-template-columns: 1fr; }
     .room-item { grid-template-columns: 1fr; }
   }
+ .board-card.overdue { border-color: var(--danger); background: rgba(232,93,93,0.08); }
+.board-card .job-date {
+  width: 100%; margin-top: 0.5rem; font-size: 11px; background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--border); border-radius: 6px; padding: 0.3rem 0.4rem; color: #fff; font-family: inherit;
+}
+.board-card .overdue-tag { color: var(--danger); font-size: 10.5px; font-weight: 500; margin-top: 0.3rem; }
 </style>
 </head>
 <body>
@@ -274,6 +280,13 @@
             <tbody id="dashRecentLeads"><tr><td colspan="4" class="empty-state">No leads yet</td></tr></tbody>
           </table>
         </div>
+       <div class="card" style="margin-top:1.5rem;">
+        <h3 style="font-family:'Playfair Display',serif;font-weight:400;font-size:16px;margin-bottom:1rem;">Today's &amp; Overdue Jobs</h3>
+        <table>
+        <thead><tr><th>Name</th><th>Service</th><th>Scheduled</th><th>Status</th></tr></thead>
+        <tbody id="todayJobsList"><tr><td colspan="4" class="empty-state">Nothing scheduled for today or overdue.</td></tr></tbody>
+       </table>
+      </div>
       </section>
  
       <!-- LEADS -->
@@ -803,24 +816,55 @@ function loadPipeline() {
   db.collection('pipeline').onSnapshot(snap => {
     const stages = { new: [], quoted: [], progress: [], complete: [] };
     let activeCount = 0, completeCount = 0;
+    const todayStr = new Date().toISOString().slice(0,10);
+    let todayAndOverdue = [];
     snap.forEach(doc => {
       const d = doc.data();
       const stage = stages[d.stage] ? d.stage : 'new';
-      stages[stage].push({ id: doc.id, ...d });
+      const item = { id: doc.id, ...d };
+      stages[stage].push(item);
       if (stage === 'progress' || stage === 'quoted') activeCount++;
       if (stage === 'complete') completeCount++;
+      if (item.scheduledDate && stage !== 'complete' && item.scheduledDate <= todayStr) {
+        todayAndOverdue.push(item);
+      }
     });
+    // Sort each column by scheduled date, undated jobs last
     Object.keys(stages).forEach(stage => {
+      stages[stage].sort((a, b) => {
+        if (!a.scheduledDate && !b.scheduledDate) return 0;
+        if (!a.scheduledDate) return 1;
+        if (!b.scheduledDate) return -1;
+        return a.scheduledDate.localeCompare(b.scheduledDate);
+      });
       const col = document.querySelector(`.board-col[data-stage="${stage}"] .board-cards`);
       col.innerHTML = stages[stage].length ? stages[stage].map(cardHtml).join('') :
         `<div style="font-size:12px;color:rgba(255,255,255,0.3);">Empty</div>`;
     });
     document.getElementById('statActive').textContent = activeCount;
     document.getElementById('statComplete').textContent = completeCount;
+
+    // Dashboard "Today's & Overdue Jobs" widget
+    todayAndOverdue.sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+    const widget = document.getElementById('todayJobsList');
+    if (widget) {
+      widget.innerHTML = todayAndOverdue.length ? todayAndOverdue.map(item => {
+        const overdue = item.scheduledDate < todayStr;
+        return `<tr>
+          <td>${escapeHtml(item.name||'')}</td>
+          <td>${escapeHtml(item.service||'')}</td>
+          <td>${item.scheduledDate}</td>
+          <td>${overdue ? '<span style="color:var(--danger);">Overdue</span>' : '<span style="color:var(--gold);">Today</span>'}</td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="4" class="empty-state">Nothing scheduled for today or overdue.</td></tr>`;
+    }
   });
 }
+
 function cardHtml(item) {
-  return `<div class="board-card">
+  const todayStr = new Date().toISOString().slice(0,10);
+  const isOverdue = item.scheduledDate && item.stage !== 'complete' && item.scheduledDate < todayStr;
+  return `<div class="board-card ${isOverdue ? 'overdue' : ''}">
     <div class="cname">${escapeHtml(item.name||'Untitled')}</div>
     <div style="color:rgba(255,255,255,0.5);">${escapeHtml(item.service||'')}</div>
     <select onchange="moveStage('${item.id}', this.value)">
@@ -829,10 +873,18 @@ function cardHtml(item) {
       <option value="progress" ${item.stage==='progress'?'selected':''}>In Progress</option>
       <option value="complete" ${item.stage==='complete'?'selected':''}>Complete</option>
     </select>
+    <input type="date" class="job-date" value="${item.scheduledDate||''}" onchange="updateScheduledDate('${item.id}', this.value)">
+    ${isOverdue ? '<div class="overdue-tag">⚠ Overdue</div>' : ''}
   </div>`;
 }
+
 function moveStage(id, stage) {
   db.collection('pipeline').doc(id).update({ stage });
+}
+
+function updateScheduledDate(id, date) {
+  db.collection('pipeline').doc(id).update({ scheduledDate: date || null });
+  showToast('Date updated');
 }
  
 /* ---------------- PORTFOLIO ---------------- */
