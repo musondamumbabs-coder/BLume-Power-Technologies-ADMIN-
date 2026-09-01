@@ -1165,7 +1165,7 @@ function bcSaveCalculation() {
   db.collection('buyCalculations').add({
     categorySummary: `${cat.size} · ${cat.brand} · ${cat.color||''}`,
     resaleLow: cat.resaleLow, resaleHigh: cat.resaleHigh,
-    refurbCost: Math.round(refurbCost), margin, buyLow, buyHigh, ratings, notes,
+    refurbCost: Math.round(refurbCost), margin, buyLow, buyHigh, targetPrice, ratings, notes,
     status: 'evaluated', createdAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => { showToast('Saved to history'); document.getElementById('bcNotes').value = ''; });
 }
