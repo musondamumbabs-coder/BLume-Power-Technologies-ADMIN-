@@ -1157,7 +1157,7 @@ function bcRecalc() {
  document.getElementById('bcTargetPrice').textContent = 'K' + Math.round((buyLow + buyHigh) / 2);
   document.getElementById('bcWarning').style.display = notWorth ? 'block' : 'none';
   document.getElementById('bcResultCard').style.display = 'block';
-  window._bcLast = { catId, cat, refurbCost, margin, buyLow, buyHigh, targetPrice: Math.round((buyLow + buyHigh) / 2), ratings: { ...bcRatings } };
+  window._bcLast = { catId, cat, refurbCost, margin, buyLow, buyHigh, targetPrice: Math.round((buyLow + buyHigh) / 2), ratings: { ...bcRatings } };}
 function bcSaveCalculation() {
   if (!window._bcLast) { showToast('Rate the parts first'); return; }
  const { cat, refurbCost, margin, buyLow, buyHigh, targetPrice, ratings } = window._bcLast;
