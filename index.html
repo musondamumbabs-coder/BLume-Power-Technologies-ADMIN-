@@ -161,8 +161,9 @@
   }
   .setup-note code { color: var(--gold); }
  
- table { display: block; overflow-x: auto; white-space: nowrap; }
-  thead, tbody, tr { display: table; width: 100%; table-layout: fixed; }
+ .card { overflow-x: auto; }
+table { width: 100%; min-width: 560px; border-collapse: collapse; table-layout: auto; }
+td, th { white-space: normal; word-break: break-word; }
 
   .sidebar-toggle {
     display: none; background: none; border: none; color: #fff; font-size: 20px;
@@ -878,6 +879,7 @@ function loadPipeline() {
 function cardHtml(item) {
   const todayStr = new Date().toISOString().slice(0,10);
   const isOverdue = item.scheduledDate && item.stage !== 'complete' && item.scheduledDate < todayStr;
+  const canDelete = item.stage === 'complete';
   return `<div class="board-card ${isOverdue ? 'overdue' : ''}">
     <div class="cname">${escapeHtml(item.name||'Untitled')}</div>
     <div style="color:rgba(255,255,255,0.5);">${escapeHtml(item.service||'')}</div>
@@ -889,6 +891,11 @@ function cardHtml(item) {
     </select>
     <input type="date" class="job-date" value="${item.scheduledDate||''}" onchange="updateScheduledDate('${item.id}', this.value)">
     ${isOverdue ? '<div class="overdue-tag">⚠ Overdue</div>' : ''}
+    <button
+      style="width:100%;margin-top:0.5rem;font-size:11px;padding:0.35rem;border-radius:6px;border:0.5px solid ${canDelete ? 'rgba(232,93,93,0.4)' : 'rgba(255,255,255,0.1)'};background:transparent;color:${canDelete ? 'var(--danger)' : 'rgba(255,255,255,0.25)'};cursor:${canDelete ? 'pointer' : 'not-allowed'};"
+      ${canDelete ? `onclick="if(confirm('Delete this completed project?')) deleteDoc('pipeline','${item.id}')"` : 'disabled title="Mark this project Complete before it can be deleted"'}>
+      🗑 Delete
+    </button>
   </div>`;
 }
 
